@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEON PIANO</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="home-screen" class="home-screen">
+    <p class="subtitle">RHYTHM GAME SYSTEM</p>
+    <h1>NEON<br>PIANO</h1>
+    <p class="description">Find your rhythm. Hit every note.</p>
+    <button id="start-button">START A NEW GAME</button>
+    <button id="connect-controller">CONNECT CONTROLLER</button>
+    <p id="controller-status">CONTROLLER DISCONNECTED</p>
+    <p id="controller-input">WAITING FOR INPUT</p>
+    <p class="status">SYSTEM READY <span>●</span></p>
+  </main>
+
+  <main id="game-screen" class="game-screen hidden">
+    <header class="game-header">
+      <button id="back-button">← BACK</button>
+      <div class="score-panel">
+        <span>SCORE</span>
+        <strong id="score">000000</strong>
+      </div>
+      <div class="combo-panel">
+        <span>COMBO</span>
+        <strong id="combo">x0</strong>
+      </div>
+    </header>
+
+    <section class="game-area">
+      <p class="game-label">HIT THE NOTES ON BEAT</p>
+
+      <div class="lanes">
+        <div class="lane" data-note="DO">
+          <div class="lane-name">DO</div>
+        </div>
+        <div class="lane" data-note="MI">
+          <div class="lane-name">MI</div>
+        </div>
+        <div class="lane" data-note="SOL">
+          <div class="lane-name">SOL</div>
+        </div>
+        <div class="hit-line"></div>
+      </div>
+
+      <p id="game-message">GET READY</p>
+      <p class="controls-hint">A = DO &nbsp; S = MI &nbsp; D = SOL</p>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
