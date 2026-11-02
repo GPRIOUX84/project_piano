@@ -8,8 +8,98 @@ const backButton = document.getElementById("back-button");
 const scoreDisplay = document.getElementById("score");
 const comboDisplay = document.getElementById("combo");
 const gameMessage = document.getElementById("game-message");
+const gameOverScreen = document.getElementById("game-over-screen");
+const finalScoreDisplay = document.getElementById("final-score");
+const restartButton = document.getElementById("restart-button");
 
 const lanes = [...document.querySelectorAll(".lane")];
+
+
+// MOTEUR AUDIO
+
+let audioContext = null;
+
+const noteFrequencies = {
+  DO: 261.63,
+  MI: 329.63,
+  SOL: 392.00
+};
+
+function initializeAudio() {
+  if (!audioContext) {
+    audioContext = new (
+      window.AudioContext || window.webkitAudioContext
+    )();
+  }
+
+  if (audioContext.state === "suspended") {
+    audioContext.resume();
+  }
+}
+
+
+function playNote(noteName) {
+  if (!audioContext || !noteFrequencies[noteName]) return;
+
+  const frequency = noteFrequencies[noteName];
+  const now = audioContext.currentTime;
+
+  const masterGain = audioContext.createGain();
+  const filter = audioContext.createBiquadFilter();
+
+  // Filtre métallique
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(3500, now);
+  filter.frequency.exponentialRampToValueAtTime(900, now + 0.8);
+  filter.Q.value = 3;
+
+  masterGain.gain.setValueAtTime(0.0001, now);
+  masterGain.gain.exponentialRampToValueAtTime(0.25, now + 0.015);
+  masterGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+
+  filter.connect(masterGain);
+  masterGain.connect(audioContext.destination);
+
+  // Oscillateurs principaux
+  const oscillators = [
+    { type: "sawtooth", ratio: 1, volume: 0.35 },
+    { type: "square", ratio: 2, volume: 0.12 },
+    { type: "sawtooth", ratio: 0.5, volume: 0.18 },
+    { type: "triangle", ratio: 3, volume: 0.08 }
+  ];
+
+  oscillators.forEach(settings => {
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = settings.type;
+    osc.frequency.setValueAtTime(
+      frequency * settings.ratio,
+      now
+    );
+
+    // Légère modulation de fréquence
+    osc.frequency.linearRampToValueAtTime(
+      frequency * settings.ratio * 1.015,
+      now + 0.12
+    );
+
+    osc.frequency.linearRampToValueAtTime(
+      frequency * settings.ratio,
+      now + 0.4
+    );
+
+    gain.gain.value = settings.volume;
+
+    osc.connect(gain);
+    gain.connect(filter);
+
+    osc.start(now);
+    osc.stop(now + 0.95);
+  });
+}
+
+
 
 const noteTypes = [
   { key: "a", name: "SOL", lane: 0, className: "note-sol" },
@@ -25,14 +115,19 @@ let nextBeatTime = 0; // mélodie//
 let melodyIndex = 0;
 
 const melody = [
-  0, 1, 2, 1,
+  0, 0, 2, 0,
   0, 1, 2, 2,
-  1, 0, 1, 2
+  0, 0, 2, 1
+];
+const beatIntervals = [ // intervalles de temps entre les notes en millisecondes
+  300, 300, 600,
+  300, 300, 600,
+  300, 300, 600,
+  300, 300, 900
 ];
 let animationId = null;
 
 const NOTE_SPEED = 220; // pixels par seconde
-const BEAT_INTERVAL = 650; //récurrence des notes
 const HIT_WINDOW = 35; // marge de timing en pixels
 
 function updateScore() {
@@ -46,6 +141,8 @@ function clearNotes() {
 }
 
 function startGame() {
+  initializeAudio();
+
   homeScreen.classList.add("hidden");
   gameScreen.classList.remove("hidden");
 
@@ -54,6 +151,7 @@ function startGame() {
   updateScore();
 
   clearNotes();
+  gameOverScreen.classList.add("hidden");
   gameMessage.textContent = "GET READY";
   gameRunning = true;
   nextBeatTime = performance.now() + 500; //démarrage de la partie//
@@ -70,7 +168,22 @@ function stopGame() {
   clearNotes();
 }
 
+function gameOver() {
+  gameRunning = false;
+  cancelAnimationFrame(animationId);
+
+  finalScoreDisplay.textContent = String(score).padStart(6, "0");
+
+  gameOverScreen.classList.remove("hidden");
+  gameMessage.textContent = "GAME OVER";
+}
+
+
 startButton.addEventListener("click", startGame);
+restartButton.addEventListener("click", () => {
+  gameOverScreen.classList.add("hidden");
+  startGame();
+});
 
 backButton.addEventListener("click", () => {
   stopGame();
@@ -103,8 +216,9 @@ function gameLoop(timestamp) {
   if (timestamp >= nextBeatTime) {
   spawnNote(melody[melodyIndex]);
 
+  nextBeatTime += beatIntervals[melodyIndex];
+
   melodyIndex = (melodyIndex + 1) % melody.length;
-  nextBeatTime += BEAT_INTERVAL;
 }
 
   const hitLine = lanes[0].clientHeight - 65;
@@ -116,11 +230,8 @@ function gameLoop(timestamp) {
     note.element.style.top = `${note.y}px`;
 
     if (!note.hit && note.y > hitLine + HIT_WINDOW) {
-      note.element.remove();
-      notes.splice(i, 1);
-      combo = 0;
-      updateScore();
-      gameMessage.textContent = "MISS!";
+    gameOver();
+    return;
     }
   }
 
@@ -130,6 +241,8 @@ function gameLoop(timestamp) {
 
 function handleNoteInput(noteName) {
   if (!gameRunning) return;
+
+  playNote(noteName);
 
   const type = noteTypes.find(note => note.name === noteName);
   if (!type) return;
